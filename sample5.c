@@ -12,20 +12,28 @@ GLdouble vertex[][3] = {
   { 0.0, 1.0, 1.0 }  /**/
 };
 
-int edge[][2] = {
-  { 0, 1 }, /* ア (A-B) */
-  { 1, 2 }, /* イ (B-C) */
-  { 2, 3 }, /* ウ (C-D) */
-  { 3, 0 }, /* エ (D-A) */
-  { 4, 5 }, /* オ (E-F) */
-  { 5, 6 }, /* カ (F-G) */
-  { 6, 7 }, /* キ (G-H) */
-  { 7, 4 }, /* ク (H-E) */
-  { 0, 4 }, /* ケ (A-E) */
-  { 1, 5 }, /* コ (B-F) */
-  { 2, 6 }, /* サ (C-G) */
-  { 3, 7 }  /* シ (D-H) */
+int face[][4] = {
+  { 0, 1, 2, 3 },
+  { 1, 5, 6, 2 },
+  { 5, 4, 7, 6 },
+  { 4, 0, 3, 7 },
+  { 4, 5, 1, 0 },
+  { 3, 2, 6, 7 }
 };
+
+GLdouble normal[][3] = {
+  { 0.0, 0.0,-1.0 },
+  { 1.0, 0.0, 0.0 },
+  { 0.0, 0.0, 1.0 },
+  {-1.0, 0.0, 0.0 },
+  { 0.0,-1.0, 0.0 },
+  { 0.0, 1.0, 0.0 }
+};
+
+GLfloat light0pos[] = { 0.0, 3.0, 5.0, 1.0 };
+GLfloat light1pos[] = { 5.0, 3.0, 0.0, 1.0 };
+
+GLfloat green[] = { 0.0, 1.0, 0.0, 1.0 };
 
 void idle(void){
   glutPostRedisplay();
@@ -34,31 +42,38 @@ void idle(void){
 void display(void)
 {
   int i;
+  int j;
   static int r = 0; /* 回転角 */
 
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glLoadIdentity();
 
   /* 視点位置と視線方向 */
   gluLookAt(3.0, 4.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
+  /* 光源の位置設定 */
+  glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
+  glLightfv(GL_LIGHT1, GL_POSITION, light1pos);
+
   /* 図形の回転 */
   glRotated((double)r, 0.0, 1.0, 0.0);
 
   /* 図形の描画 */
   glColor3d(0.0, 0.0, 0.0);
-  glBegin(GL_POLYGON);
-  for(i = 0; i < 12; i++){
-    glVertex3dv(vertex[edge[i][0]]);
-    glVertex3dv(vertex[edge[i][1]]);
+  glBegin(GL_QUADS);
+  for(j = 0; j < 6; ++j){
+    glNormal3dv(normal[j]);
+    for(i = 0; i < 4; i++){
+      glVertex3dv(vertex[face[j][i]]);
+    }
   }
   glEnd();
 
   glutSwapBuffers();
 
-  /* １周回ったら回転角を０に戻す */
-  if(++r >= 360) r = 0;
+  /* 一周回ったら回転角を 0 に戻す */
+  if (++r >= 360) r = 0;
 }
 
 void resize(int w, int h)
@@ -111,12 +126,23 @@ void keyboard(unsigned char key, int x, int y)
 
 void init(void)
 {
-  glClearColor(0.0, 0.0, 1.0, 1.0);
+  glClearColor(1.0, 1.0, 1.0, 1.0);
+
+  glEnable(GL_DEPTH_TEST);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CW);
+
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+  glEnable(GL_LIGHT1);
+  glLightfv(GL_LIGHT1, GL_DIFFUSE, green);
+  glLightfv(GL_LIGHT1, GL_SPECULAR, green);
 }
 int main(int argc, char *argv[])
 {
   glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
+  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
   glutCreateWindow(argv[0]);
   glutDisplayFunc(display);
   glutReshapeFunc(resize);

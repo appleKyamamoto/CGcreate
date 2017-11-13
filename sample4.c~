@@ -54,59 +54,6 @@ void display(void)
     glVertex3dv(vertex[edge[i][1]]);
   }
   glEnd();
-
-  glutSwapBuffers();
-
-  /* １周回ったら回転角を０に戻す */
-  if(++r >= 360) r = 0;
-}
-
-void resize(int w, int h)
-{
-  glViewport(0, 0, w, h);
-
-  /* 透視変換行列の設定 */
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluPerspective(30.0, (double)w / (double)h, 1.0, 100.0);
-
-  /* モデルビュー変換行列の設定 */
-  glMatrixMode(GL_MODELVIEW);
-}
-
-void mouse(int button, int state, int x,int y){
-  switch(button){
-  case GLUT_LEFT_BUTTON:
-    if(state == GLUT_DOWN){
-      /* アニメーション開始 */
-      glutIdleFunc(idle);
-    }
-    else{
-      /* アニメーション停止 */
-      glutIdleFunc(0);
-    }
-    break;
-  case GLUT_RIGHT_BUTTON:
-    if(state == GLUT_DOWN){
-      /* コマ送り 1ステップ進める */
-      glutPostRedisplay();
-    }
-    break;
-  default:
-    break;
-  }
-}
-
-void keyboard(unsigned char key, int x, int y)
-{
-  switch (key) {
-  case 'q':
-  case 'Q':
-  case '\033':  /* '\033' は ESC の ASCII コード */
-    exit(0);
-  default:
-    break;
-  }
 }
 
 void init(void)
