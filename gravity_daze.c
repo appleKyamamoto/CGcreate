@@ -6,8 +6,8 @@
 #define FLOOR 7.0
 #define MOVESPEED 0.2
 
-double ex = 15.0, ey = 10.0, ez = 15.0; /* 視点位置 */
-double edx = 0.0, edy = 0.0, edz = 0.0; /* 目標位置 */
+double eye[3] = { 15.0, 10.0, 15.0 }; /* 視点位置 */
+double eyed[3] ={ 0.0, 0.0, 0.0 }; /* 目標位置 */
 double h[9];
 
 GLdouble vertex[][3] = {
@@ -107,7 +107,7 @@ void display(void)
   glLoadIdentity();
 
   /* 視点位置と視線方向 */
-  gluLookAt(ex, ey, ez, edx, edy, edz, 0.0, 1.0, 0.0);
+  gluLookAt(eye[0], eye[1], eye[2], eyed[0], eyed[1], eyed[2], 0.0, 1.0, 0.0);
 
   /* 方向補助 */
   glPushMatrix();
@@ -156,7 +156,7 @@ void resize(int w, int h)
   /* モデルビュー変換行列の設定 */
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt(ex, ey, ez, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+  gluLookAt(eye[0], eye[1], eye[2], eyed[0], eyed[1], eyed[2], 0.0, 1.0, 0.0);
 }
 
 void mouse(int button, int state, int x,int y){
@@ -185,44 +185,44 @@ void keyboard(unsigned char key, int x, int y)
   switch (key) {
   case 'q':
   case 'Q':
-    ey += MOVESPEED; edy += MOVESPEED;
+    eye[1] += MOVESPEED; eyed[1] += MOVESPEED;
     glutIdleFunc(idle); /* 上昇 */
     break;
   case 'e':
   case 'E':
-    ey -= MOVESPEED; edy -= MOVESPEED;
+    eye[1] -= MOVESPEED; eyed[1] -= MOVESPEED;
     glutIdleFunc(idle); /* 下降 */
     break;
   case '\033':  /* '\033' は ESC の ASCII コード */
     exit(0);
   case 'w':
   case 'W':
-    ex -= MOVESPEED; edx -= MOVESPEED;
-    ez -= MOVESPEED; edz -= MOVESPEED;
+    eye[0] -= MOVESPEED; eyed[0] -= MOVESPEED;
+    eye[2] -= MOVESPEED; eyed[2] -= MOVESPEED;
     glutIdleFunc(idle); /* 前進 */
     break;
   case 'a':
   case 'A':
-    ex -= MOVESPEED; edx -= MOVESPEED;
-    ez += MOVESPEED; edz += MOVESPEED;
+    eye[0] -= MOVESPEED; eyed[0] -= MOVESPEED;
+    eye[2] += MOVESPEED; eyed[2] += MOVESPEED;
     glutIdleFunc(idle); /* 左移動 */
     break;
   case 's':
   case 'S':
-    ex += MOVESPEED; edx += MOVESPEED;
-    ez += MOVESPEED; edz += MOVESPEED;
+    eye[0] += MOVESPEED; eye[0] += MOVESPEED;
+    eye[2] += MOVESPEED; eye[2] += MOVESPEED;
     glutIdleFunc(idle); /* 後退 */
     break;
   case 'd':
   case 'D':
-    ex += MOVESPEED; edx += MOVESPEED;
-    ez -= MOVESPEED; edz -= MOVESPEED;
+    eye[0] += MOVESPEED; eye[0] += MOVESPEED;
+    eye[2] -= MOVESPEED; eye[2] -= MOVESPEED;
     glutIdleFunc(idle); /* 右移動 */
     break;
   case 'r':
   case 'R':
-    ex = 15.0; ey = 10.0; ez = 15.0;
-    edx = 0.0; edy = 0.0; edz = 0.0;
+    eye[0] = 15.0; eye[1] = 10.0; eye[2] = 15.0;
+    eyed[0] = 0.0; eyed[1] = 0.0; eyed[2] = 0.0;
     glutPostRedisplay();
     break;
   default:
@@ -234,19 +234,19 @@ void specialkeyboard(int key, int x, int y)
 {
   switch(key){
   case GLUT_KEY_UP:
-    edy += MOVESPEED;
+    eyed[1] += MOVESPEED;
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_DOWN:
-    edy -= MOVESPEED;
+    eyed[1] -= MOVESPEED;
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_LEFT:
-    edx -= MOVESPEED; edz += MOVESPEED;
+    eyed[0] -= MOVESPEED; eyed[2] += MOVESPEED;
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_RIGHT:
-    edx += MOVESPEED; edz -= MOVESPEED;
+    eyed[0] += MOVESPEED; eyed[2] -= MOVESPEED;
     glutIdleFunc(idle);
     break;
   default:
