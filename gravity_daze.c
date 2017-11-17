@@ -1,3 +1,7 @@
+/*
+gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
+*/
+
 #include <GL/glut.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -7,6 +11,9 @@
 #define FLOOR 9
 #define MOVESPEED 0.1
 #define RAD M_PI / 180
+#define TEXWIDTH 256
+#define TEXHEIGHT 256
+static const char texture1[] = "renga_256x256.raw";
 
 double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
@@ -60,6 +67,7 @@ GLfloat red[] = { 1.0, 0.0, 0.0, 1.0 };
 GLfloat blue[] = { 0.2, 0.2, 0.8, 1.0 };
 GLfloat brown[] = { 0.85, 0.46, 0.14, 1.0};
 GLfloat white[] = { 1.0, 1.0, 1.0, 1.0};
+GLfloat gray[] = { 0.5, 0.5, 0.5, 1.0};
 
 void cube(void){
   int i;
@@ -69,6 +77,7 @@ void cube(void){
   for(j = 0; j < 6; ++j){
     glNormal3dv(normal[j]);
     for(i = 0; i < 4; ++i){
+      glTexCoord3dv(vertex[face[j][i]]);
       glVertex3dv(vertex[face[j][i]]);
     }
   }
@@ -157,7 +166,6 @@ void display(void)
 
   /* 視点位置と視線方向 */
   direction(eyed,theta,fai);
-  printf("theta: %f , fai: %f \n",theta, fai);
   gluLookAt(eye[0], eye[1], eye[2], eye[0] + eyed[0], eye[1] + eyed[1], eye[2] + eyed[2], 0.0, 1.0, 0.0);
   /* 問題点 視点を上下回転しているときカメラ上向き方向を固定しているため変になる */
 
@@ -178,7 +186,7 @@ void display(void)
     glTranslated( 0.0, 0.0, (2 * j) + 1.0);
     for(i = 0;i < (FLOOR / 2); i++){
       glPushMatrix();
-      glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, red);
+      glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
       glTranslated((2 * i) + 1.0, 0.0, 0.0);
       glScaled(1.0, 2.0 + h[j * 3 + i], 1.0);
       cube();
@@ -308,6 +316,20 @@ void specialkeyboard(int key, int x, int y)
 }
 void init(void)
 {
+  /* テクスチャの読み込みに使う配列 */
+  GLubyte texture[TEXHEIGHT][TEXWIDTH][3];
+  FILE *fp;
+  
+  /* テクスチャ画像の読み込み */
+  if ((fp = fopen(texture1, "rb")) != NULL) {
+    fread(texture, sizeof texture, 1, fp);
+    fclose(fp);
+  }
+  else {
+    perror(texture1);
+  }
+ 
+  /* 初期設定 */
   glClearColor(1.0, 1.0, 1.0, 1.0);
 
   glEnable(GL_DEPTH_TEST);
@@ -322,6 +344,8 @@ void init(void)
   glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
   glLightfv(GL_LIGHT0, GL_SPECULAR, white);
   
+  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
   int i;
   srand((unsigned)time(NULL));
   for(i = 0; i < (FLOOR * FLOOR / 4); i++){
