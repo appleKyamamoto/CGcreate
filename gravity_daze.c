@@ -17,7 +17,6 @@ static const char texture1[] = "renga_256x256.raw";
 
 double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
-double eyen[3] = { 0.0, 0.0, 1.0 }; /* 視点の右手法線ベクトル */
 double h[100]; /* 建物の高さの乱数 */
 double theta = 0.0; /* x軸と視線方向のなす角 */
 double fai = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
@@ -77,7 +76,7 @@ void cube(void){
   for(j = 0; j < 6; ++j){
     glNormal3dv(normal[j]);
     for(i = 0; i < 4; ++i){
-      glTexCoord3dv(vertex[face[j][i]]);
+      //glTexCoord3dv(vertex[face[j][i]]);
       glVertex3dv(vertex[face[j][i]]);
     }
   }
@@ -321,13 +320,13 @@ void init(void)
   FILE *fp;
   
   /* テクスチャ画像の読み込み */
-  if ((fp = fopen(texture1, "rb")) != NULL) {
+  /*if ((fp = fopen(texture1, "rb")) != NULL) {
     fread(texture, sizeof texture, 1, fp);
     fclose(fp);
   }
   else {
     perror(texture1);
-  }
+    }*/
  
   /* 初期設定 */
   glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -344,7 +343,7 @@ void init(void)
   glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
   glLightfv(GL_LIGHT0, GL_SPECULAR, white);
   
-  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+  //glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
   int i;
   srand((unsigned)time(NULL));
