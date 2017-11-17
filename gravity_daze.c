@@ -2,13 +2,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 
-#define FLOOR 7.0
-#define MOVESPEED 0.2
+#define FLOOR 9
+#define MOVESPEED 0.1
+#define RAD M_PI / 180
 
-double eye[3] = { 15.0, 10.0, 15.0 }; /* 視点位置 */
-double eyed[3] ={ 0.0, 0.0, 0.0 }; /* 目標位置 */
-double h[9];
+double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
+double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
+double eyen[3] = { 0.0, 0.0, 1.0 }; /* 視点の右手法線ベクトル */
+double h[100]; /* 建物の高さの乱数 */
+double theta = 0.0; /* x軸と視線方向のなす角 */
+double fai = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
+double ganma = 90.0; /* 視点の回転角 未実装*/
 
 GLdouble vertex[][3] = {
   { 0.0, 0.0, 0.0 }, /*A*/
@@ -18,7 +24,7 @@ GLdouble vertex[][3] = {
   { 0.0, 0.0, 1.0 }, /*E*/
   { 1.0, 0.0, 1.0 }, /*F*/
   { 1.0, 1.0, 1.0 }, /*G*/
-  { 0.0, 1.0, 1.0 }  /**/
+  { 0.0, 1.0, 1.0 }  /*H*/
 };
 
 int face[][4] = {
@@ -79,19 +85,63 @@ void Ground(void){
   glEnd();
 }
 
-void direction(void){
+void assist(void){
   glBegin(GL_LINES);
   glColor3d(1.0, 0.0, 0.0);
-  glVertex3d( 0.0, 0.0, 0.0); //x
+  glVertex3d(-0.1, 0.0, 0.0); //x
   glVertex3d( 1.0, 0.0, 0.0);
   glColor3d(0.0, 1.0, 0.0);
-  glVertex3d( 0.0, 0.0, 0.0); //y
+  glVertex3d( 0.0,-0.1, 0.0); //y
   glVertex3d( 0.0, 1.0, 0.0);
   glColor3d(0.0, 0.0, 1.0);
-  glVertex3d( 0.0, 0.0, 0.0); //z
+  glVertex3d( 0.0, 0.0,-0.1); //z
   glVertex3d( 0.0, 0.0, 1.0);
   glEnd();
 }
+
+double direction(double target[3], double a, double b){
+  target[0] = cos(a * RAD) * cos(b * RAD);
+  target[1] = sin(a * RAD);
+  target[2] = cos(a * RAD) * sin(b * RAD);
+} /* 目標位置設定 */
+
+void angle(double v, double h){
+  static int tr = 1.0;
+  if((theta + tr * v) > 90 || (theta + tr * v) < -90) tr *= -1;
+  theta += tr * v;
+  fai += h;
+} /* 角度の増減計算 */ 
+
+void Move(char c){
+  double d;
+  int i;
+  double n[3]; /* 進行方向ベクトル */
+  double dir = 1.0; /* 方向による補正 1は順方向 */
+    switch(c){
+    case 'w':
+    case 's':
+      direction(n,theta,fai);
+      if(c == 's') dir *= -1; /* 後退 */
+      break;
+    case 'a':
+    case 'd':
+      direction(n,theta,fai + 90);
+      if(c == 'a') dir *= -1; /* 左 */
+      break;
+    case 'q':
+    case 'e':
+      direction(n,theta + 90,fai);
+      if(c == 'e') dir *= -1; /* 下降 */
+      break;
+    default:
+      break;
+    }
+    for(i = 0; i < 3; i++){
+      d = dir * n[i] * MOVESPEED; /* 移動量計算 */
+      eye[i] += d;
+    }
+} /* 移動 */
+
 void idle(void){
   glutPostRedisplay();
 }
@@ -100,19 +150,21 @@ void display(void)
 {
   int i;
   int j;
-  static int r = 0; /* 回転角 */
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glLoadIdentity();
 
   /* 視点位置と視線方向 */
-  gluLookAt(eye[0], eye[1], eye[2], eyed[0], eyed[1], eyed[2], 0.0, 1.0, 0.0);
+  direction(eyed,theta,fai);
+  printf("theta: %f , fai: %f \n",theta, fai);
+  gluLookAt(eye[0], eye[1], eye[2], eye[0] + eyed[0], eye[1] + eyed[1], eye[2] + eyed[2], 0.0, 1.0, 0.0);
+  /* 問題点 視点を上下回転しているときカメラ上向き方向を固定しているため変になる */
 
   /* 方向補助 */
   glPushMatrix();
-  glTranslated(0.0, 4.0, 0.0);
-  direction();
+  glTranslated(0.0 , FLOOR / 2, 1.0);
+  assist();
   glPopMatrix();
   
   /* 地面の描画 */
@@ -121,10 +173,10 @@ void display(void)
   Ground();
 
   /* 図形の描画 */
-  for(j = 0;j < 3; j++){
+  for(j = 0;j < (FLOOR / 2); j++){
     glPushMatrix();
     glTranslated( 0.0, 0.0, (2 * j) + 1.0);
-    for(i = 0;i < 3; i++){
+    for(i = 0;i < (FLOOR / 2); i++){
       glPushMatrix();
       glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, red);
       glTranslated((2 * i) + 1.0, 0.0, 0.0);
@@ -139,9 +191,6 @@ void display(void)
   glPopMatrix();
 
   glutSwapBuffers();
-
-  /* 一周回ったら回転角を 0 に戻す */
-  if (++r >= 360) r = 0;
 }
 
 void resize(int w, int h)
@@ -185,46 +234,50 @@ void keyboard(unsigned char key, int x, int y)
   switch (key) {
   case 'q':
   case 'Q':
-    eye[1] += MOVESPEED; eyed[1] += MOVESPEED;
+    Move('q');
     glutIdleFunc(idle); /* 上昇 */
     break;
   case 'e':
   case 'E':
-    eye[1] -= MOVESPEED; eyed[1] -= MOVESPEED;
+    Move('e');
     glutIdleFunc(idle); /* 下降 */
     break;
-  case '\033':  /* '\033' は ESC の ASCII コード */
-    exit(0);
   case 'w':
   case 'W':
-    eye[0] -= MOVESPEED; eyed[0] -= MOVESPEED;
-    eye[2] -= MOVESPEED; eyed[2] -= MOVESPEED;
+    Move('w');
     glutIdleFunc(idle); /* 前進 */
-    break;
-  case 'a':
-  case 'A':
-    eye[0] -= MOVESPEED; eyed[0] -= MOVESPEED;
-    eye[2] += MOVESPEED; eyed[2] += MOVESPEED;
-    glutIdleFunc(idle); /* 左移動 */
     break;
   case 's':
   case 'S':
-    eye[0] += MOVESPEED; eye[0] += MOVESPEED;
-    eye[2] += MOVESPEED; eye[2] += MOVESPEED;
+    Move('s');
     glutIdleFunc(idle); /* 後退 */
+    break;
+  case 'a':
+  case 'A':
+    Move('a');
+    glutIdleFunc(idle); /* 左移動 */
     break;
   case 'd':
   case 'D':
-    eye[0] += MOVESPEED; eye[0] += MOVESPEED;
-    eye[2] -= MOVESPEED; eye[2] -= MOVESPEED;
+    Move('d');
     glutIdleFunc(idle); /* 右移動 */
     break;
+  case 'j':
+  case 'J':
+    /* ganma += 2;
+       glutIdleFunc(idle); /* 視点の回転 未実装 */ 
+    break; 
   case 'r':
   case 'R':
-    eye[0] = 15.0; eye[1] = 10.0; eye[2] = 15.0;
-    eyed[0] = 0.0; eyed[1] = 0.0; eyed[2] = 0.0;
+    eye[0] = -10.0; eye[1] = 2.0; eye[2] = (double)(FLOOR / 2);
+    eyed[0] = 1.0; eyed[1] = 0.0; eyed[2] = 0.0;
     glutPostRedisplay();
     break;
+  case ' ':
+    printf("space\n");
+    break;
+  case '\033':  /* '\033' は ESC の ASCII コード */
+    exit(0);
   default:
     break;
   }
@@ -234,19 +287,19 @@ void specialkeyboard(int key, int x, int y)
 {
   switch(key){
   case GLUT_KEY_UP:
-    eyed[1] += MOVESPEED;
+    angle(1,0);
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_DOWN:
-    eyed[1] -= MOVESPEED;
+    angle(-1, 0);
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_LEFT:
-    eyed[0] -= MOVESPEED; eyed[2] += MOVESPEED;
+    angle(0,-1);
     glutIdleFunc(idle);
     break;
   case GLUT_KEY_RIGHT:
-    eyed[0] += MOVESPEED; eyed[2] -= MOVESPEED;
+    angle(0, 1);
     glutIdleFunc(idle);
     break;
   default:
@@ -271,10 +324,11 @@ void init(void)
   
   int i;
   srand((unsigned)time(NULL));
-  for(i = 0; i < 9; i++){
+  for(i = 0; i < (FLOOR * FLOOR / 4); i++){
     h[i] = (double)(rand()%10) / 10;
   }
 }
+
 int main(int argc, char *argv[])
 {
   glutInitWindowPosition(100, 100);
