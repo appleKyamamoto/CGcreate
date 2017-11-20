@@ -8,16 +8,22 @@ gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
 #include <time.h>
 #include <math.h>
 
-#define FLOOR 9
-#define MOVESPEED 0.1
-#define RAD M_PI / 180
-#define TEXWIDTH 256
-#define TEXHEIGHT 256
-static const char texture1[] = "renga_256x256.raw";
+#define FLOOR 9 /* 地面の１辺の大きさ */
+#define MOVESPEED 0.2 /* 移動速度 */
+#define RAD M_PI / 180 /* rad変換 */
+
+#define TEXWIDTH 256 /* テクスチャ幅 */
+#define TEXHEIGHT 256 /* テクスチャの高さ */
+static const char texture1[] = "renga_256x256.raw"; /* テクスチャファイル名 */
+static double genfunc[][4] = { /* テクスチャ生成関数のパラメータ */
+  { 1.0, 0.0, 0.0, 0.0 },
+  { 0.0, 1.0, 0.0, 0.0 },
+};
+
+double h[100]; /* 建物の高さの乱数 */
 
 double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
-double h[100]; /* 建物の高さの乱数 */
 double theta = 0.0; /* x軸と視線方向のなす角 */
 double fai = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
 double ganma = 90.0; /* 視点の回転角 未実装*/
@@ -31,7 +37,7 @@ GLdouble vertex[][3] = {
   { 1.0, 0.0, 1.0 }, /*F*/
   { 1.0, 1.0, 1.0 }, /*G*/
   { 0.0, 1.0, 1.0 }  /*H*/
-};
+}; /* 立方体 */
 
 int face[][4] = {
   { 0, 1, 2, 3 },
@@ -61,6 +67,7 @@ GLdouble ground[][3] = {
 GLfloat light0pos[] = { 5.0, 3.0, 0.0, 1.0 };
 GLfloat light1pos[] = { 5.0, 3.0, 0.0, 1.0 };
 
+/* 色配列 */
 GLfloat green[] = { 0.0, 1.0, 0.0, 1.0 };
 GLfloat red[] = { 1.0, 0.0, 0.0, 1.0 };
 GLfloat blue[] = { 0.2, 0.2, 0.8, 1.0 };
@@ -76,7 +83,6 @@ void cube(void){
   for(j = 0; j < 6; ++j){
     glNormal3dv(normal[j]);
     for(i = 0; i < 4; ++i){
-      //glTexCoord3dv(vertex[face[j][i]]);
       glVertex3dv(vertex[face[j][i]]);
     }
   }
@@ -186,9 +192,23 @@ void display(void)
     for(i = 0;i < (FLOOR / 2); i++){
       glPushMatrix();
       glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
+
+      /* 座標と大きさ指定 */
       glTranslated((2 * i) + 1.0, 0.0, 0.0);
       glScaled(1.0, 2.0 + h[j * 3 + i], 1.0);
+
+      /* テクスチャマッピング開始 */
+      glEnable(GL_TEXTURE_2D);
+      /* テクスチャ座標の自動生成を有効にする */
+      glEnable(GL_TEXTURE_GEN_S);
+      glEnable(GL_TEXTURE_GEN_T);
       cube();
+      /* テクスチャ座標の自動生成を無効にする */
+      glDisable(GL_TEXTURE_GEN_S);
+      glDisable(GL_TEXTURE_GEN_T);
+      /* テクスチャマッピング終了 */
+      glDisable(GL_TEXTURE_2D);
+
       glPopMatrix();
     }
     glPopMatrix();
@@ -316,34 +336,50 @@ void specialkeyboard(int key, int x, int y)
 void init(void)
 {
   /* テクスチャの読み込みに使う配列 */
-  GLubyte texture[TEXHEIGHT][TEXWIDTH][3];
+  GLubyte texture[TEXHEIGHT][TEXWIDTH][4];
   FILE *fp;
   
   /* テクスチャ画像の読み込み */
-  /*if ((fp = fopen(texture1, "rb")) != NULL) {
+  if ((fp = fopen(texture1, "rb")) != NULL) {
     fread(texture, sizeof texture, 1, fp);
     fclose(fp);
   }
   else {
     perror(texture1);
-    }*/
+  }
  
+  /* テクスチャ画像はワード単位 */
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+  /* テクスチャ割り当て */
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXWIDTH, TEXHEIGHT, 0,
+	       GL_RGBA, GL_UNSIGNED_BYTE, texture);
+
+  /* テクスチャ拡大縮小方法の設定 */
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+  /* 頂点のオブジェクト空間における座標値をテクスチャ座標に使う */
+  glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  
+  /* テクスチャ座標生成関数の設定 */
+  glTexGendv(GL_S, GL_OBJECT_PLANE, genfunc[0]);
+  glTexGendv(GL_T, GL_OBJECT_PLANE, genfunc[1]);
+  
   /* 初期設定 */
   glClearColor(1.0, 1.0, 1.0, 1.0);
-
   glEnable(GL_DEPTH_TEST);
-
   glEnable(GL_CULL_FACE);
   glFrontFace(GL_CW);
 
+  /* 光源の初期設定 */
   glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);
-  /* 光源の位置設定 */
   glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
   glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
   glLightfv(GL_LIGHT0, GL_SPECULAR, white);
   
-  //glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
   int i;
   srand((unsigned)time(NULL));
