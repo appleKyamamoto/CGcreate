@@ -15,18 +15,15 @@ gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
 #define TEXWIDTH 256 /* テクスチャ幅 */
 #define TEXHEIGHT 256 /* テクスチャの高さ */
 static const char texture1[] = "renga_256x256.raw"; /* テクスチャファイル名 */
-static double genfunc[][4] = { /* テクスチャ生成関数のパラメータ */
-  { 1.0, 0.0, 0.0, 0.0 },
-  { 0.0, 1.0, 0.0, 0.0 },
-};
 
 double h[100]; /* 建物の高さの乱数 */
 
 double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
+double c_up = 1.0;
 double theta = 0.0; /* x軸と視線方向のなす角 */
-double fai = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
-double ganma = 90.0; /* 視点の回転角 未実装*/
+double phi = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
+//double gamma = 90.0; /* 視点の回転角 未実装*/
 
 GLdouble vertex[][3] = {
   { 0.0, 0.0, 0.0 }, /*A*/
@@ -38,6 +35,13 @@ GLdouble vertex[][3] = {
   { 1.0, 1.0, 1.0 }, /*G*/
   { 0.0, 1.0, 1.0 }  /*H*/
 }; /* 立方体 */
+
+GLdouble texcoord[][2] = {
+  { 0.0, 2.0 },
+  { 2.0, 2.0 },
+  { 2.0, 0.0 },
+  { 0.0, 0.0 }
+}; /* textureの座標 */
 
 int face[][4] = {
   { 0, 1, 2, 3 },
@@ -79,14 +83,30 @@ void cube(void){
   int i;
   int j;
 
+  /* 材質の設定 */
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
+
+  /* アルファテスト開始 */
+  glEnable(GL_ALPHA_TEST);
+  
+  /* テクスチャマッピング開始 */
+  glEnable(GL_TEXTURE_2D);
+
   glBegin(GL_QUADS);
   for(j = 0; j < 6; ++j){
     glNormal3dv(normal[j]);
     for(i = 0; i < 4; ++i){
+      glTexCoord2dv(texcoord[i]);
       glVertex3dv(vertex[face[j][i]]);
     }
   }
   glEnd();
+
+  /* テクスチャマッピング終了 */
+  glDisable(GL_TEXTURE_2D);
+
+  /* アルファテスト終了 */
+  glDisable(GL_ALPHA_TEST);
 }
 
 void Ground(void){
@@ -121,9 +141,9 @@ double direction(double target[3], double a, double b){
 
 void angle(double v, double h){
   static int tr = 1.0;
-  if((theta + tr * v) > 90 || (theta + tr * v) < -90) tr *= -1;
+  if((theta + tr * v) > 90 || (theta + tr * v) < -90){ tr *= -1; c_up *= -1;}
   theta += tr * v;
-  fai += h;
+  phi += h;
 } /* 角度の増減計算 */ 
 
 void Move(char c){
@@ -133,19 +153,25 @@ void Move(char c){
   double dir = 1.0; /* 方向による補正 1は順方向 */
     switch(c){
     case 'w':
+    case 'W':
     case 's':
-      direction(n,theta,fai);
-      if(c == 's') dir *= -1; /* 後退 */
+    case 'S':
+      direction(n,theta,phi);
+      if(c == 's' || c == 'S') dir *= -1; /* 後退 */
       break;
     case 'a':
+    case 'A':
     case 'd':
-      direction(n,theta,fai + 90);
-      if(c == 'a') dir *= -1; /* 左 */
+    case 'D':
+      direction(n,theta,phi + 90);
+      if(c == 'a' || c == 'A') dir *= -1; /* 左 */
       break;
     case 'q':
+    case 'Q':
     case 'e':
-      direction(n,theta + 90,fai);
-      if(c == 'e') dir *= -1; /* 下降 */
+    case 'E':
+      direction(n,theta + 90,phi);
+      if(c == 'e' || c == 'E') dir *= -1; /* 下降 */
       break;
     default:
       break;
@@ -157,23 +183,12 @@ void Move(char c){
 } /* 移動 */
 
 void idle(void){
+  direction(eyed,theta,phi);
   glutPostRedisplay();
 }
 
-void display(void)
-{
-  int i;
-  int j;
-
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  glLoadIdentity();
-
-  /* 視点位置と視線方向 */
-  direction(eyed,theta,fai);
-  gluLookAt(eye[0], eye[1], eye[2], eye[0] + eyed[0], eye[1] + eyed[1], eye[2] + eyed[2], 0.0, 1.0, 0.0);
-  /* 問題点 視点を上下回転しているときカメラ上向き方向を固定しているため変になる */
-
+void scene(void){
+  int i,j;
   /* 方向補助 */
   glPushMatrix();
   glTranslated(0.0 , FLOOR / 2, 1.0);
@@ -191,24 +206,13 @@ void display(void)
     glTranslated( 0.0, 0.0, (2 * j) + 1.0);
     for(i = 0;i < (FLOOR / 2); i++){
       glPushMatrix();
-      glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
 
       /* 座標と大きさ指定 */
       glTranslated((2 * i) + 1.0, 0.0, 0.0);
       glScaled(1.0, 2.0 + h[j * 3 + i], 1.0);
-
-      /* テクスチャマッピング開始 */
-      glEnable(GL_TEXTURE_2D);
-      /* テクスチャ座標の自動生成を有効にする */
-      glEnable(GL_TEXTURE_GEN_S);
-      glEnable(GL_TEXTURE_GEN_T);
+ 
       cube();
-      /* テクスチャ座標の自動生成を無効にする */
-      glDisable(GL_TEXTURE_GEN_S);
-      glDisable(GL_TEXTURE_GEN_T);
-      /* テクスチャマッピング終了 */
-      glDisable(GL_TEXTURE_2D);
-
+      
       glPopMatrix();
     }
     glPopMatrix();
@@ -216,6 +220,19 @@ void display(void)
 
   /* モデルビュー変換行列の復帰 */
   glPopMatrix();
+}
+
+void display(void)
+{
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glLoadIdentity();
+
+  /* 視点位置と視線方向 */
+  gluLookAt(eye[0], eye[1], eye[2], eye[0] + eyed[0], eye[1] + eyed[1], eye[2] + eyed[2], 0.0, c_up, 0.0);
+  /* 問題点 視点を上下回転しているときカメラ上向き方向を固定しているため変になる */
+
+  /* 物体の描画 */
+  scene();
 
   glutSwapBuffers();
 }
@@ -261,45 +278,29 @@ void keyboard(unsigned char key, int x, int y)
   switch (key) {
   case 'q':
   case 'Q':
-    Move('q');
-    glutIdleFunc(idle); /* 上昇 */
-    break;
   case 'e':
   case 'E':
-    Move('e');
-    glutIdleFunc(idle); /* 下降 */
-    break;
   case 'w':
   case 'W':
-    Move('w');
-    glutIdleFunc(idle); /* 前進 */
-    break;
   case 's':
   case 'S':
-    Move('s');
-    glutIdleFunc(idle); /* 後退 */
-    break;
   case 'a':
   case 'A':
-    Move('a');
-    glutIdleFunc(idle); /* 左移動 */
-    break;
   case 'd':
   case 'D':
-    Move('d');
-    glutIdleFunc(idle); /* 右移動 */
+    Move(key); /* 移動 */
     break;
   case 'j':
   case 'J':
-    /* ganma += 2;
-       glutIdleFunc(idle); /* 視点の回転 未実装 */ 
+    /* gamma += 2; /* 視点の回転 未実装 */ 
     break; 
   case 'r':
   case 'R':
     eye[0] = -10.0; eye[1] = 2.0; eye[2] = (double)(FLOOR / 2);
     eyed[0] = 1.0; eyed[1] = 0.0; eyed[2] = 0.0;
+    theta = 0; phi = 0;
     glutPostRedisplay();
-    break;
+    break; /* 初期位置に戻る */
   case ' ':
     printf("space\n");
     break;
@@ -315,19 +316,15 @@ void specialkeyboard(int key, int x, int y)
   switch(key){
   case GLUT_KEY_UP:
     angle(1,0);
-    glutIdleFunc(idle);
     break;
   case GLUT_KEY_DOWN:
     angle(-1, 0);
-    glutIdleFunc(idle);
     break;
   case GLUT_KEY_LEFT:
     angle(0,-1);
-    glutIdleFunc(idle);
     break;
   case GLUT_KEY_RIGHT:
     angle(0, 1);
-    glutIdleFunc(idle);
     break;
   default:
     break;
@@ -348,30 +345,27 @@ void init(void)
     perror(texture1);
   }
  
-  /* テクスチャ画像はワード単位 */
+  /* テクスチャ画像はワード単位に詰め込まれている */
   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-  /* テクスチャ割り当て */
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXWIDTH, TEXHEIGHT, 0,
-	       GL_RGBA, GL_UNSIGNED_BYTE, texture);
-
-  /* テクスチャ拡大縮小方法の設定 */
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-  /* 頂点のオブジェクト空間における座標値をテクスチャ座標に使う */
-  glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-  glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
   
-  /* テクスチャ座標生成関数の設定 */
-  glTexGendv(GL_S, GL_OBJECT_PLANE, genfunc[0]);
-  glTexGendv(GL_T, GL_OBJECT_PLANE, genfunc[1]);
+  /* テクスチャの割り当て */
+  gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, TEXWIDTH, TEXHEIGHT,
+    GL_RGBA, GL_UNSIGNED_BYTE, texture);
+    
+  /* テクスチャを拡大・縮小する方法の指定 */
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+  /* テクスチャ環境 */
+  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+  /* アルファテストの比較関数 */
+  glAlphaFunc(GL_GREATER, 0.5);
   
   /* 初期設定 */
   glClearColor(1.0, 1.0, 1.0, 1.0);
   glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glFrontFace(GL_CW);
+  glDisable(GL_CULL_FACE);
 
   /* 光源の初期設定 */
   glEnable(GL_LIGHTING);
@@ -386,6 +380,7 @@ void init(void)
   for(i = 0; i < (FLOOR * FLOOR / 4); i++){
     h[i] = (double)(rand()%10) / 10;
   }
+  glutIdleFunc(idle);
 }
 
 int main(int argc, char *argv[])
