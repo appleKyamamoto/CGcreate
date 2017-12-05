@@ -18,6 +18,9 @@ static const char texture1[] = "renga_256x256.raw"; /* テクスチャファイ�
 
 double h[100]; /* 建物の高さの乱数 */
 
+time_t t;
+int t_flag = -1; /*-1:無効化 1:有効化 */
+
 double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
 double c_up = 1.0;
@@ -182,7 +185,19 @@ void Move(char c){
     }
 } /* 移動 */
 
+void drop(){
+  time_t now = time(NULL);
+  double d = 1 / 2 * 9.8 * (now - t) * (now - t) * MOVESPEED;
+  int i;
+  for( i = 0;i < 3; i++){
+    eye[i] += d * eyed[i];
+  }
+} /* 自由落下 */
+
 void idle(void){
+  if(t_flag>0){
+    drop();
+  }
   direction(eyed,theta,phi);
   glutPostRedisplay();
 }
@@ -303,6 +318,8 @@ void keyboard(unsigned char key, int x, int y)
     break; /* 初期位置に戻る */
   case ' ':
     printf("space\n");
+    t_flag *= -1;
+    t = time(NULL);
     break;
   case '\033':  /* '\033' は ESC の ASCII コード */
     exit(0);
