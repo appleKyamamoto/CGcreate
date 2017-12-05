@@ -8,8 +8,8 @@ gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
 #include <time.h>
 #include <math.h>
 
-#define FLOOR 9 /* 地面の１辺の大きさ */
-#define MOVESPEED 0.2 /* 移動速度 */
+#define FLOOR 25 /* 地面の１辺の大きさ */
+#define MOVESPEED 0.6 /* 移動速度 */
 #define RAD M_PI / 180 /* rad変換 */
 
 #define TEXWIDTH 256 /* テクスチャ幅 */
@@ -21,11 +21,11 @@ double h[100]; /* 建物の高さの乱数 */
 time_t t;
 int t_flag = -1; /*-1:無効化 1:有効化 */
 
-double eye[3] = { -10.0, 2.0, (double)(FLOOR / 2) }; /* 視点位置 */
+double eye[3] = { 25.0, 15.0, 35.0 }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
-double c_up = 1.0;
-double theta = 0.0; /* x軸と視線方向のなす角 */
-double phi = 0.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
+double c_up = 1.0; /* カメラ上向き */
+double theta = -10.0; /* y軸と視線方向のなす角 */
+double phi = 37.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
 //double gamma = 90.0; /* 視点の回転角 未実装*/
 
 GLdouble vertex[][3] = {
@@ -62,13 +62,6 @@ GLdouble normal[][3] = {
   {-1.0, 0.0, 0.0 },
   { 0.0,-1.0, 0.0 },
   { 0.0, 1.0, 0.0 }
-};
-
-GLdouble ground[][3] = {
-  {  0.0,  0.0, 0.0 }, 
-  { FLOOR,  0.0, 0.0 },
-  { FLOOR,  0.0, FLOOR },
-  {  0.0,  0.0, FLOOR },
 };
 
 GLfloat light0pos[] = { 5.0, 3.0, 0.0, 1.0 };
@@ -114,27 +107,14 @@ void cube(void){
 
 void Ground(void){
   int i;
-  
-  glBegin(GL_QUADS);
-  for(i = 0; i < 4; i++){
-    glVertex3dv(ground[i]);
-  }
-  glEnd();
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, brown);
+  glPushMatrix();
+  glTranslated(0  ,-0.5, 0 );
+  glScaled(FLOOR,0.5,FLOOR);
+  cube();
+  glPopMatrix();
 }
 
-void assist(void){
-  glBegin(GL_LINES);
-  glColor3d(1.0, 0.0, 0.0);
-  glVertex3d(-0.1, 0.0, 0.0); //x
-  glVertex3d( 1.0, 0.0, 0.0);
-  glColor3d(0.0, 1.0, 0.0);
-  glVertex3d( 0.0,-0.1, 0.0); //y
-  glVertex3d( 0.0, 1.0, 0.0);
-  glColor3d(0.0, 0.0, 1.0);
-  glVertex3d( 0.0, 0.0,-0.1); //z
-  glVertex3d( 0.0, 0.0, 1.0);
-  glEnd();
-}
 
 double direction(double target[3], double a, double b){
   target[0] = cos(a * RAD) * cos(b * RAD);
@@ -187,7 +167,7 @@ void Move(char c){
 
 void drop(){
   time_t now = time(NULL);
-  double d = 1 / 2 * 9.8 * (now - t) * (now - t) * MOVESPEED;
+  double d = 0.5 * 9.8 * difftime(now, t) * difftime(now, t) * 0.04;
   int i;
   for( i = 0;i < 3; i++){
     eye[i] += d * eyed[i];
@@ -204,15 +184,12 @@ void idle(void){
 
 void scene(void){
   int i,j;
-  /* 方向補助 */
-  glPushMatrix();
-  glTranslated(0.0 , FLOOR / 2, 1.0);
-  assist();
-  glPopMatrix();
   
-  /* 地面の描画 */
+
   glPushMatrix();
-  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, brown);
+  glTranslated(50,0,50);
+
+  /* 地面の描画 */
   Ground();
 
   /* 図形の描画 */
@@ -224,7 +201,7 @@ void scene(void){
 
       /* 座標と大きさ指定 */
       glTranslated((2 * i) + 1.0, 0.0, 0.0);
-      glScaled(1.0, 2.0 + h[j * 3 + i], 1.0);
+      glScaled(1.0, h[j * 3 + i], 1.0);
  
       cube();
       
@@ -307,17 +284,16 @@ void keyboard(unsigned char key, int x, int y)
     break;
   case 'j':
   case 'J':
-    /* gamma += 2; /* 視点の回転 未実装 */ 
+    printf("x:%f y:%f z:%f theta:%f phi:%f\n",eye[0],eye[1],eye[2],theta,phi);/* gamma += 2; /* 視点の回転 未実装 */ 
     break; 
   case 'r':
   case 'R':
-    eye[0] = -10.0; eye[1] = 2.0; eye[2] = (double)(FLOOR / 2);
+    eye[0] = 25.0; eye[1] = 15.0; eye[2] = 35;
     eyed[0] = 1.0; eyed[1] = 0.0; eyed[2] = 0.0;
-    theta = 0; phi = 0;
+    theta = -10.0; phi = 37.0;
     glutPostRedisplay();
     break; /* 初期位置に戻る */
   case ' ':
-    printf("space\n");
     t_flag *= -1;
     t = time(NULL);
     break;
@@ -395,7 +371,7 @@ void init(void)
   int i;
   srand((unsigned)time(NULL));
   for(i = 0; i < (FLOOR * FLOOR / 4); i++){
-    h[i] = (double)(rand()%10) / 10;
+    h[i] = (double)(rand() % 40) / 10;
   }
   glutIdleFunc(idle);
 }
