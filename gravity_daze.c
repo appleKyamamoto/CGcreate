@@ -8,7 +8,7 @@ gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
 #include <time.h>
 #include <math.h>
 
-#define FLOOR 25 /* 地面の１辺の大きさ */
+#define FLOOR 50 /* 地面の１辺の大きさ */
 #define MOVESPEED 0.6 /* 移動速度 */
 #define RAD M_PI / 180 /* rad変換 */
 
@@ -16,17 +16,16 @@ gcc -lglut -lGLU -o gravity_daze gravity_daze.c -lm
 #define TEXHEIGHT 256 /* テクスチャの高さ */
 static const char texture1[] = "renga_256x256.raw"; /* テクスチャファイル名 */
 
-double h[100]; /* 建物の高さの乱数 */
+double h[1000]; /* 建物の高さの乱数 */
 
 time_t t;
 int t_flag = -1; /*-1:無効化 1:有効化 */
 
-double eye[3] = { 25.0, 15.0, 35.0 }; /* 視点位置 */
+double eye[3] = { FLOOR, 30.0, FLOOR }; /* 視点位置 */
 double eyed[3] = { 1.0, 0.0, 0.0 }; /* 目標位置ベクトル(視点位置を中心に単位球)*/
 double c_up = 1.0; /* カメラ上向き */
-double theta = -10.0; /* y軸と視線方向のなす角 */
-double phi = 37.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
-//double gamma = 90.0; /* 視点の回転角 未実装*/
+double theta = -29.0; /* y軸と視線方向のなす角 */
+double phi = 230.0; /* x軸と視線方向ベクトルのxz平面成分のなす角 */
 
 GLdouble vertex[][3] = {
   { 0.0, 0.0, 0.0 }, /*A*/
@@ -80,7 +79,7 @@ void cube(void){
   int j;
 
   /* 材質の設定 */
-  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, brown);
 
   /* アルファテスト開始 */
   glEnable(GL_ALPHA_TEST);
@@ -106,13 +105,36 @@ void cube(void){
 }
 
 void Ground(void){
-  int i;
-  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, brown);
-  glPushMatrix();
-  glTranslated(0  ,-0.5, 0 );
-  glScaled(FLOOR,0.5,FLOOR);
-  cube();
-  glPopMatrix();
+  double i,j;
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, gray);
+
+  /* アルファテスト開始 */
+  glEnable(GL_ALPHA_TEST);
+  
+  /* テクスチャマッピング開始 */
+  glEnable(GL_TEXTURE_2D);
+
+  glBegin(GL_QUADS);
+  glNormal3dv(normal[5]);
+  for(i = 0; i < FLOOR; i++){
+    for(j = 0; j < FLOOR; j++){
+      glTexCoord2d(0.0, 2.0);
+        glVertex3d(i, 0.0, j + 1);
+      glTexCoord2d(2.0, 2.0);
+        glVertex3d(i + 1.0, 0.0, j + 1.0);
+      glTexCoord2d(2.0, 0.0);
+        glVertex3d(i + 1.0, 0.0, j);
+      glTexCoord2d(0.0, 0.0);
+        glVertex3d(i, 0.0, j);
+    }
+  }
+  glEnd();
+
+  /* テクスチャマッピング終了 */
+  glDisable(GL_TEXTURE_2D);
+
+  /* アルファテスト終了 */
+  glDisable(GL_ALPHA_TEST);
 }
 
 
@@ -184,24 +206,22 @@ void idle(void){
 
 void scene(void){
   int i,j;
-  
 
   glPushMatrix();
-  glTranslated(50,0,50);
 
   /* 地面の描画 */
   Ground();
 
   /* 図形の描画 */
-  for(j = 0;j < (FLOOR / 2); j++){
+  for(j = 0;j < (FLOOR / 4); j++){
     glPushMatrix();
-    glTranslated( 0.0, 0.0, (2 * j) + 1.0);
-    for(i = 0;i < (FLOOR / 2); i++){
+    glTranslated( 0.0, 0.0, (4 * j) + 1.0);
+    for(i = 0;i < (FLOOR / 4); i++){
       glPushMatrix();
 
       /* 座標と大きさ指定 */
-      glTranslated((2 * i) + 1.0, 0.0, 0.0);
-      glScaled(1.0, h[j * 3 + i], 1.0);
+      glTranslated((4 * i) + 1.0, 0.0, 0.0);
+      glScaled(h[j * 3 + i] / 3, h[j * 3 + i], h[j * 3 + i] / 3);
  
       cube();
       
@@ -212,6 +232,11 @@ void scene(void){
 
   /* モデルビュー変換行列の復帰 */
   glPopMatrix();
+
+  /*glBegin(GL_LINES);
+  glVertex3d(eye[0] + eyed[0], eye[1] + eyed[1], eye[2] + eyed[2]);
+  glVertex3d(FLOOR / 2, 0, FLOOR / 2);
+  glEnd(); */  // 舞台の真ん中
 }
 
 void display(void)
@@ -236,33 +261,12 @@ void resize(int w, int h)
   /* 透視変換行列の設定 */
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  gluPerspective(30.0, (double)w / (double)h, 1.0, 100.0);
+  gluPerspective(30.0, (double)w / (double)h, 1.0, 200.0);
 
   /* モデルビュー変換行列の設定 */
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   gluLookAt(eye[0], eye[1], eye[2], eyed[0], eyed[1], eyed[2], 0.0, 1.0, 0.0);
-}
-
-void mouse(int button, int state, int x,int y){
-  switch(button){
-  case GLUT_LEFT_BUTTON:
-    if(state == GLUT_DOWN){
-      glutIdleFunc(idle);
-    }
-    else{
-      /* アニメーション停止 */
-      glutIdleFunc(0);
-    }
-    break;
-  case GLUT_RIGHT_BUTTON:
-    if(state == GLUT_DOWN){
-      glutIdleFunc(idle);
-     }
-    break;
-  default:
-    break;
-  }
 }
 
 void keyboard(unsigned char key, int x, int y)
@@ -284,7 +288,7 @@ void keyboard(unsigned char key, int x, int y)
     break;
   case 'j':
   case 'J':
-    printf("x:%f y:%f z:%f theta:%f phi:%f\n",eye[0],eye[1],eye[2],theta,phi);/* gamma += 2; /* 視点の回転 未実装 */ 
+    printf("x:%f y:%f z:%f theta:%f phi:%f\n",eye[0],eye[1],eye[2],theta,phi);
     break; 
   case 'r':
   case 'R':
@@ -346,9 +350,8 @@ void init(void)
     GL_RGBA, GL_UNSIGNED_BYTE, texture);
     
   /* テクスチャを拡大・縮小する方法の指定 */
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   /* テクスチャ環境 */
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
@@ -370,8 +373,8 @@ void init(void)
 
   int i;
   srand((unsigned)time(NULL));
-  for(i = 0; i < (FLOOR * FLOOR / 4); i++){
-    h[i] = (double)(rand() % 40) / 10;
+  for(i = 0; i < (FLOOR / 4) * (FLOOR / 4); i++){
+    h[i] = (double)(rand() % 100) / 10;
   }
   glutIdleFunc(idle);
 }
@@ -385,7 +388,6 @@ int main(int argc, char *argv[])
   glutCreateWindow(argv[0]);
   glutDisplayFunc(display);
   glutReshapeFunc(resize);
-  glutMouseFunc(mouse);
   glutKeyboardFunc(keyboard);
   glutSpecialFunc(specialkeyboard);
   init();
